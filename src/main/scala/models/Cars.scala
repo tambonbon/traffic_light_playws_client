@@ -1,6 +1,9 @@
 package models
 import akka.actor.ActorSystem
 import akka.stream._
+import play.api.libs.json.JsValue
+import play.api.libs.json.JsValue.jsValueToJsLookup
+import play.api.libs.ws.JsonBodyReadables.readableAsJson
 import play.api.libs.ws._
 import play.api.libs.ws.ahc._
 
@@ -27,13 +30,17 @@ object Cars {
     // "AhcWSClientConfigFactory.forConfig(ConfigFactory.load, this.getClass.getClassLoader)"
     val wsClient = StandaloneAhcWSClient()
 
-    call(wsClient)
+//    call(wsClient)
+//      .andThen { case _ => wsClient.close() }
+//      .andThen { case _ => system.terminate() }
+
+    callToRed(wsClient)
       .andThen { case _ => wsClient.close() }
       .andThen { case _ => system.terminate() }
 
-    goToRed(wsClient)
-      .andThen { case _ => wsClient.close() }
-      .andThen { case _ => system.terminate() }
+//    goToRed(wsClient)
+//      .andThen { case _ => wsClient.close() }
+//      .andThen { case _ => system.terminate() }
   }
 
   def call(wsClient: StandaloneWSClient): Future[Unit] = {
@@ -45,8 +52,23 @@ object Cars {
     }
   }
   def callToRed(wsClient: StandaloneWSClient): Future[Unit] = {
+    val fromID = 1
+    val response = wsClient.url(s"$host/get/$fromID").get()
+    response flatMap { response =>
+      wsClient.url(s"$host/go-to-red/$fromID").get().map { response2 =>
+        val statusText: String = response.statusText
+        val body  = response.body[JsValue]
+        val body2  = (response2.body[JsValue] \ "color").as[String]
+//        val result = response.
+        println(s"Got a response $statusText:" +"\n"+ s"We are going from $body" +"\n"+ s"and stop at $body2")
+//        response.body[JsValue]
 
-    val request = wsClient.url(s"$host/all").get()
+      }
+
+    }
+//    val futureResult: Future[String] = wsClient.url(host).get().map { response =>
+//      (response.body \ "person" \ "name").as[String]
+//    }
 
   }
   def goToRed(wsClient: StandaloneWSClient): Future[Unit] = {
@@ -57,12 +79,12 @@ object Cars {
       println(s"Got a response $statusText: $body")
     }
   }
-  def goToRedFor2(wsClient: StandaloneWSClient): Future[Unit] = {
-    val futureResponse: Future[StandaloneWSResponse] = for {
-      responseOne <- wsClient.url(s"host/go-to-red/1").get()
-      responseTwo <- wsClient.url(responseOne.body).get()
-
-    }
-  }
+//  def goToRedFor2(wsClient: StandaloneWSClient): Future[Unit] = {
+//    val futureResponse: Future[StandaloneWSResponse] = for {
+//      responseOne <- wsClient.url(s"host/go-to-red/1").get()
+//      responseTwo <- wsClient.url(responseOne.body).get()
+//
+//    }
+//  }
 }
 
