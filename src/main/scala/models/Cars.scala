@@ -29,16 +29,28 @@ object Cars {
     // Create the standalone WS client
     // no argument defaults to a AhcWSClientConfig created from
     // "AhcWSClientConfigFactory.forConfig(ConfigFactory.load, this.getClass.getClassLoader)"
-    val wsClient = StandaloneAhcWSClient()
-
+//    val wsClient1 = StandaloneAhcWSClient()
+//    callToRed(wsClient1)
+//      .andThen { case _ => wsClient1.close() }
+//      .andThen { case _ => system.terminate() }
+//    val wsClient2 = StandaloneAhcWSClient()
+//    println("-------")
+//    callToRedTwoLights(wsClient2)
+//      .andThen { case _ => wsClient2.close() }
+//      .andThen { case _ => system.terminate() }
+    val wsClient3 = StandaloneAhcWSClient()
+    println("-------")
+    callToRedWithPath(wsClient3)
+      .andThen { case _ => wsClient3.close() }
+      .andThen { case _ => system.terminate() }
     //    call(wsClient)
     //      .andThen { case _ => wsClient.close() }
     //      .andThen { case _ => system.terminate() }
 
-    callToRed(wsClient)
-    callToRedWithPath(wsClient)
-      .andThen { case _ => wsClient.close() }
-      .andThen { case _ => system.terminate() }
+//    callToRed(wsClient)
+
+//    callToRedWithPath(wsClient)
+
     //    goToRed(wsClient)
     //      .andThen { case _ => wsClient.close() }
     //      .andThen { case _ => system.terminate() }
@@ -81,19 +93,34 @@ object Cars {
     }
   }
 
-//  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
-//    val fromID1 = 1
-//    val fromID2 = 2
-//    val futureResponse: Future[StandaloneWSResponse] = for {
-//      responseOne <- wsClient.url(s"$host/go-to-red/$fromID1").get()
-//      responseTwo <- wsClient.url(s"$host/go-to-red/$fromID2").get()
-//    } yield (responseOne.body, responseTwo.body)
-//  }
-  //  def goToRedFor2(wsClient: StandaloneWSClient): Future[Unit] = {
-  //    val futureResponse: Future[StandaloneWSResponse] = for {
-  //
-  //
-  //    }
-  //  }
+  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
+    val fromID1 = 1
+    val fromID2 = 2
+    val requestOne = wsClient.url(s"$host/get/$fromID1").get()
+    val requestTwo = wsClient.url(s"$host/get/$fromID2").get()
+
+    val futureResponse: Future[Unit] = for {
+      responseOne <- requestOne.flatMap { response =>
+        wsClient.url(s"$host/go-to-red/$fromID1").get().map { response2 =>
+          val statusText: String = response.statusText
+          val body = response.body[JsValue]
+          val body2 = response2.body[JsValue]
+          val stopID = (response2.body[JsValue] \ "id").as[Int]
+          println(s"Got a response $statusText for request one:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+
+        }
+      }
+      responseTwo <- requestTwo.flatMap { response =>
+        wsClient.url(s"$host/go-to-red/$fromID2").get().map { response2 =>
+          val statusText: String = response.statusText
+          val body = response.body[JsValue]
+          val body2 = response2.body[JsValue]
+          val stopID = (response2.body[JsValue] \ "id").as[Int]
+          println(s"Got a response $statusText for request two:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+        }
+      }
+    } yield (responseOne, responseTwo)
+    futureResponse
+  }
 }
 
