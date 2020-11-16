@@ -70,6 +70,8 @@ object Cars {
     val fromID = 1
     def recur(id: Int): Future[Unit] = {
       val request = wsClient.url(s"$host/traffic-light/$id").get()
+      // flatMap bc we are mapping Future[StandaloneWSRequest#Response](StandaloneWSRequest#Response => Future[Unit]): Future[Unit]
+      // if it was Map -----> Future[Future[Unit]]
       request flatMap  { response =>
         val body = response.body[JsValue]
         val color= (body \ "color").as[String]
@@ -85,37 +87,55 @@ object Cars {
       }
     }
     recur(fromID)
-
   }
-
+  def combine(one: StandaloneWSRequest#Response, two: StandaloneWSRequest#Response): Unit = {
+    val body1 = (one.body[JsValue])
+    val color1 = (body1 \ "color").as[String]
+    val body2 = (two.body[JsValue])
+    val color2 = (body2 \ "color").as[String]
+    println(one.body[JsValue], two.body[JsValue])
+  }
   def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
     val fromID1 = 1
     val fromID2 = 2
     val requestOne = wsClient.url(s"$host/get/$fromID1").get()
     val requestTwo = wsClient.url(s"$host/get/$fromID2").get()
 
-    val futureResponse: Future[Unit] = for {
-      responseOne <- requestOne.flatMap { response =>
-        wsClient.url(s"$host/go-to-red/$fromID1").get().map { response2 =>
-          val statusText: String = response.statusText
-          val body = response.body[JsValue]
-          val body2 = response2.body[JsValue]
-          val stopID = (response2.body[JsValue] \ "id").as[Int]
-          println(s"Got a response $statusText for request one:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-
-        }
-      }
-      responseTwo <- requestTwo.flatMap { response =>
-        wsClient.url(s"$host/go-to-red/$fromID2").get().map { response2 =>
-          val statusText: String = response.statusText
-          val body = response.body[JsValue]
-          val body2 = response2.body[JsValue]
-          val stopID = (response2.body[JsValue] \ "id").as[Int]
-          println(s"Got a response $statusText for request two:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-        }
-      }
-    } yield (responseOne, responseTwo)
-    futureResponse
+    for {
+      one <- requestOne
+      two <- requestTwo
+    } yield combine(one, two)
   }
+
+
+//  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
+//    val fromID1 = 1
+//    val fromID2 = 2
+//    val requestOne = wsClient.url(s"$host/get/$fromID1").get()
+//    val requestTwo = wsClient.url(s"$host/get/$fromID2").get()
+//
+//    val futureResponse: Future[Unit] = for {
+//      responseOne <- requestOne.flatMap { response =>
+//        wsClient.url(s"$host/go-to-red/$fromID1").get().map { response2 =>
+//          val statusText: String = response.statusText
+//          val body = response.body[JsValue]
+//          val body2 = response2.body[JsValue]
+//          val stopID = (response2.body[JsValue] \ "id").as[Int]
+//          println(s"Got a response $statusText for request one:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+//
+//        }
+//      }
+//      responseTwo <- requestTwo.flatMap { response =>
+//        wsClient.url(s"$host/go-to-red/$fromID2").get().map { response2 =>
+//          val statusText: String = response.statusText
+//          val body = response.body[JsValue]
+//          val body2 = response2.body[JsValue]
+//          val stopID = (response2.body[JsValue] \ "id").as[Int]
+//          println(s"Got a response $statusText for request two:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+//        }
+//      }
+//    } yield (responseOne, responseTwo)
+//    futureResponse
+//  }
 }
 
