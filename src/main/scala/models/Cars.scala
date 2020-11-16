@@ -70,45 +70,22 @@ object Cars {
     val fromID = 1
     def recur(id: Int): Future[Unit] = {
       val request = wsClient.url(s"$host/traffic-light/$id").get()
-      request map { response =>
+      request flatMap  { response =>
         val body = response.body[JsValue]
         val color= (body \ "color").as[String]
         println(body)
           if (color == "Red") {
+            val stopID = (body \ "id").as[Int]
             println(s"We stop at $body")
+            println((fromID to stopID).toList)
             break
           } else {
             recur(id + 1)
-            println("")
           }
       }
     }
     recur(fromID)
 
-
-//    response flatMap { response =>
-//      wsClient.url(s"$host/go-to-red/$fromID").get().map { response2 =>
-//        val statusText: String = response.statusText
-//        val body = response.body[JsValue]
-//        val body2 = response2.body[JsValue]
-//        println(s"Got a response $statusText:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-//      }
-//    }
-  }
-
-  def callToRedWithPath(wsClient: StandaloneWSClient): Future[Unit] = {
-    val fromID = 1
-    val response = wsClient.url(s"$host/get/$fromID").get()
-    response flatMap { response =>
-      wsClient.url(s"$host/go-to-red/$fromID").get().map { response2 =>
-        val statusText: String = response.statusText
-        val body = response.body[JsValue]
-        val body2 = response2.body[JsValue]
-        val stopID = (response2.body[JsValue] \ "id").as[Int]
-        println(s"Got a response $statusText:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-        println((fromID to stopID).toList)
-      }
-    }
   }
 
   def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
