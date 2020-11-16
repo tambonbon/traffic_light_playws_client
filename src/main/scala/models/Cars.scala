@@ -5,9 +5,10 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.JsValue.jsValueToJsLookup
 import play.api.libs.ws.JsonBodyReadables.readableAsJson
 import play.api.libs.ws._
-import play.api.libs.ws.ahc._
+import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import scala.concurrent.Future
+import scala.util.control.Breaks.break
 
 object Cars {
 
@@ -29,20 +30,20 @@ object Cars {
     // Create the standalone WS client
     // no argument defaults to a AhcWSClientConfig created from
     // "AhcWSClientConfigFactory.forConfig(ConfigFactory.load, this.getClass.getClassLoader)"
-//    val wsClient1 = StandaloneAhcWSClient()
-//    callToRed(wsClient1)
-//      .andThen { case _ => wsClient1.close() }
-//      .andThen { case _ => system.terminate() }
+    val wsClient1 = StandaloneAhcWSClient()
+    callToRed(wsClient1)
+      .andThen { case _ => wsClient1.close() }
+      .andThen { case _ => system.terminate() }
 //    val wsClient2 = StandaloneAhcWSClient()
 //    println("-------")
 //    callToRedTwoLights(wsClient2)
 //      .andThen { case _ => wsClient2.close() }
 //      .andThen { case _ => system.terminate() }
-    val wsClient3 = StandaloneAhcWSClient()
-    println("-------")
-    callToRedWithPath(wsClient3)
-      .andThen { case _ => wsClient3.close() }
-      .andThen { case _ => system.terminate() }
+//    val wsClient3 = StandaloneAhcWSClient()
+//    println("-------")
+//    callToRedWithPath(wsClient3)
+//      .andThen { case _ => wsClient3.close() }
+//      .andThen { case _ => system.terminate() }
     //    call(wsClient)
     //      .andThen { case _ => wsClient.close() }
     //      .andThen { case _ => system.terminate() }
@@ -67,15 +68,32 @@ object Cars {
 
   def callToRed(wsClient: StandaloneWSClient): Future[Unit] = {
     val fromID = 1
-    val response = wsClient.url(s"$host/get/$fromID").get()
-    response flatMap { response =>
-      wsClient.url(s"$host/go-to-red/$fromID").get().map { response2 =>
-        val statusText: String = response.statusText
+    def recur(id: Int): Future[Unit] = {
+      val request = wsClient.url(s"$host/traffic-light/$id").get()
+      request map { response =>
         val body = response.body[JsValue]
-        val body2 = response2.body[JsValue]
-        println(s"Got a response $statusText:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+        val color= (body \ "color").as[String]
+        println(body)
+          if (color == "Red") {
+            println(s"We stop at $body")
+            break
+          } else {
+            recur(id + 1)
+            println("")
+          }
       }
     }
+    recur(fromID)
+
+
+//    response flatMap { response =>
+//      wsClient.url(s"$host/go-to-red/$fromID").get().map { response2 =>
+//        val statusText: String = response.statusText
+//        val body = response.body[JsValue]
+//        val body2 = response2.body[JsValue]
+//        println(s"Got a response $statusText:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
+//      }
+//    }
   }
 
   def callToRedWithPath(wsClient: StandaloneWSClient): Future[Unit] = {
