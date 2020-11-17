@@ -1,6 +1,7 @@
 package models
 import akka.actor.ActorSystem
 import akka.stream._
+import models.Color.{Color, Red}
 import play.api.libs.json.JsValue
 import play.api.libs.json.JsValue.jsValueToJsLookup
 import play.api.libs.ws.JsonBodyReadables.readableAsJson
@@ -9,7 +10,7 @@ import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import scala.concurrent.Future
 
-object Cars {
+object Cars extends TrafficLightJson {
 
   import scala.concurrent.ExecutionContext.Implicits._
 
@@ -44,47 +45,51 @@ object Cars {
 
   }
 
-  def callToRed(wsClient: StandaloneWSClient): Future[Unit] = {
+  def callToRed(wsClient: StandaloneWSClient): Future[TrafficLight] = {
     val fromID = 1
-    def recur(id: Int): Future[Unit] = {
+    def recur(id: Int): Future[TrafficLight] = {
       val request = wsClient.url(s"$host/traffic-light/$id").get()
       // flatMap bc we are mapping Future[StandaloneWSRequest#Response](StandaloneWSRequest#Response => Future[Unit]): Future[Unit]
       // if it was Map -----> Future[Future[Unit]]
       request flatMap  { response =>
         val body = response.body[JsValue]
-        val color= (body \ "color").as[String]
+        val res: TrafficLight  = body.as[TrafficLight]
+        val color= (body \ "color").as[Color]
         println(body)
-          if (color == "Red") {
-            val stopID = (body \ "id").as[Int]
-            println(s"We stop at $body")
-            println((fromID to stopID).toList)
-            Future.successful()
-          } else {
-            recur(id + 1)
-          }
+        if (color == Red) {
+          val stopID = (body \ "id").as[Int]
+          println(s"We stop at $body")
+          println((fromID to stopID).toList)
+          Future.successful(res)
+        } else {
+          recur(id + 1)
+        }
       }
     }
     recur(fromID)
   }
 
-  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
+  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[TrafficLight] = {
     val fromID1 = 1
     val fromID2 = 2
 
-    def recur(id1: Int, id2: Int): Future[Unit] = {
+    def recur(id1: Int, id2: Int): Future[TrafficLight] = {
       val requestOne = wsClient.url(s"$host/traffic-light/$id1").get()
       val requestTwo = wsClient.url(s"$host/traffic-light/$id2").get()
 
       requestOne flatMap { response1 =>
         requestTwo flatMap { response2 =>
           val body1 = response1.body[JsValue]
+          val res1  = body1.as[TrafficLight]
           val color1 = (body1 \ "color").as[String]
           val body2 = response2.body[JsValue]
+          val res2  = body2.as[TrafficLight]
           val color2 = (body2 \ "color").as[String]
           if ( (color1 == "Red") || (color2 == "Red") ) {
             println(s"Car 1 stops at $body1" + "\n" +
               s"Car 2 stops at $body2")
-            Future.successful()
+            Future.successful(res1)
+            Future.successful(res2)
           }
           else {
             recur(id1 + 1, id2 + 1)
