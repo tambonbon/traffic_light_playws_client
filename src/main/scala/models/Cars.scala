@@ -8,11 +8,8 @@ import play.api.libs.ws._
 import play.api.libs.ws.ahc.StandaloneAhcWSClient
 
 import scala.concurrent.Future
-import scala.util.control.Breaks.break
 
 object Cars {
-
-  import DefaultBodyReadables._
 
   import scala.concurrent.ExecutionContext.Implicits._
 
@@ -31,7 +28,7 @@ object Cars {
     // no argument defaults to a AhcWSClientConfig created from
     // "AhcWSClientConfigFactory.forConfig(ConfigFactory.load, this.getClass.getClassLoader)"
     val wsClient1 = StandaloneAhcWSClient()
-    callToRed(wsClient1)
+    callToRedTwoLights(wsClient1)
       .andThen { case _ => wsClient1.close() }
       .andThen { case _ => system.terminate() }
 //    val wsClient2 = StandaloneAhcWSClient()
@@ -44,26 +41,7 @@ object Cars {
 //    callToRedWithPath(wsClient3)
 //      .andThen { case _ => wsClient3.close() }
 //      .andThen { case _ => system.terminate() }
-    //    call(wsClient)
-    //      .andThen { case _ => wsClient.close() }
-    //      .andThen { case _ => system.terminate() }
 
-//    callToRed(wsClient)
-
-//    callToRedWithPath(wsClient)
-
-    //    goToRed(wsClient)
-    //      .andThen { case _ => wsClient.close() }
-    //      .andThen { case _ => system.terminate() }
-  }
-
-  def call(wsClient: StandaloneWSClient): Future[Unit] = {
-
-    wsClient.url(s"$host/all").get().map { response =>
-      val statusText: String = response.statusText
-      val body = response.body[String]
-      println(s"Got a response $statusText: $body")
-    }
   }
 
   def callToRed(wsClient: StandaloneWSClient): Future[Unit] = {
@@ -80,7 +58,7 @@ object Cars {
             val stopID = (body \ "id").as[Int]
             println(s"We stop at $body")
             println((fromID to stopID).toList)
-            break
+            Future.successful()
           } else {
             recur(id + 1)
           }
@@ -88,23 +66,46 @@ object Cars {
     }
     recur(fromID)
   }
-  def combine(one: StandaloneWSRequest#Response, two: StandaloneWSRequest#Response): Unit = {
-    val body1 = (one.body[JsValue])
-    val color1 = (body1 \ "color").as[String]
-    val body2 = (two.body[JsValue])
-    val color2 = (body2 \ "color").as[String]
-    println(one.body[JsValue], two.body[JsValue])
-  }
+
   def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
     val fromID1 = 1
     val fromID2 = 2
-    val requestOne = wsClient.url(s"$host/get/$fromID1").get()
-    val requestTwo = wsClient.url(s"$host/get/$fromID2").get()
 
-    for {
-      one <- requestOne
-      two <- requestTwo
-    } yield combine(one, two)
+    def recur(id1: Int, id2: Int): Future[Unit] = {
+      val requestOne = wsClient.url(s"$host/traffic-light/$id1").get()
+      val requestTwo = wsClient.url(s"$host/traffic-light/$id2").get()
+
+      requestOne flatMap { response1 =>
+        requestTwo flatMap { response2 =>
+          val body1 = response1.body[JsValue]
+          val color1 = (body1 \ "color").as[String]
+          val body2 = response2.body[JsValue]
+          val color2 = (body2 \ "color").as[String]
+          if (color1 == "Red") {
+            println(s"Car 1 stops at $body1")
+            Future.successful(println(""))
+          }
+          else if (color2 == "Red") {
+            println(s"Car 2 stops at $body2")
+            Future.successful(println(""))
+          }
+          else {
+            recur(id1 + 1, id2 + 1)
+          }
+        }
+      }
+    }
+    recur(fromID1, fromID2)
+//    for {
+//      one <- requestOne
+//      body1 = one.body[JsValue]
+//      color1 = (body1 \ "color").as[String]
+//      if color1 equals "Red"
+//      two <- requestTwo
+//      body2 = (two.body[JsValue])
+//      color2 = (body2 \ "color").as[String]
+//      if color2 equals("Red")
+//    } yield println(s"We stop at $body1, $body2")
   }
 
 
