@@ -81,13 +81,10 @@ object Cars {
           val color1 = (body1 \ "color").as[String]
           val body2 = response2.body[JsValue]
           val color2 = (body2 \ "color").as[String]
-          if (color1 == "Red") {
-            println(s"Car 1 stops at $body1")
-            Future.successful(println(""))
-          }
-          else if (color2 == "Red") {
-            println(s"Car 2 stops at $body2")
-            Future.successful(println(""))
+          if ( (color1 == "Red") || (color2 == "Red") ) {
+            println(s"Car 1 stops at $body1" + "\n" +
+              s"Car 2 stops at $body2")
+            Future.successful()
           }
           else {
             recur(id1 + 1, id2 + 1)
@@ -108,35 +105,5 @@ object Cars {
 //    } yield println(s"We stop at $body1, $body2")
   }
 
-
-//  def callToRedTwoLights(wsClient: StandaloneWSClient): Future[Unit] = {
-//    val fromID1 = 1
-//    val fromID2 = 2
-//    val requestOne = wsClient.url(s"$host/get/$fromID1").get()
-//    val requestTwo = wsClient.url(s"$host/get/$fromID2").get()
-//
-//    val futureResponse: Future[Unit] = for {
-//      responseOne <- requestOne.flatMap { response =>
-//        wsClient.url(s"$host/go-to-red/$fromID1").get().map { response2 =>
-//          val statusText: String = response.statusText
-//          val body = response.body[JsValue]
-//          val body2 = response2.body[JsValue]
-//          val stopID = (response2.body[JsValue] \ "id").as[Int]
-//          println(s"Got a response $statusText for request one:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-//
-//        }
-//      }
-//      responseTwo <- requestTwo.flatMap { response =>
-//        wsClient.url(s"$host/go-to-red/$fromID2").get().map { response2 =>
-//          val statusText: String = response.statusText
-//          val body = response.body[JsValue]
-//          val body2 = response2.body[JsValue]
-//          val stopID = (response2.body[JsValue] \ "id").as[Int]
-//          println(s"Got a response $statusText for request two:" + "\n" + s"We are going from $body" + "\n" + s"and stop at $body2")
-//        }
-//      }
-//    } yield (responseOne, responseTwo)
-//    futureResponse
-//  }
 }
 
